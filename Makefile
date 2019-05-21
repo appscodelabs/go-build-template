@@ -16,7 +16,7 @@
 BIN := myapp
 
 # Where to push the docker image.
-REGISTRY ?= thockin
+REGISTRY ?= tigerworks
 
 # This version-strategy uses git tags to set the version string
 VERSION := $(shell git describe --tags --always --dirty)
