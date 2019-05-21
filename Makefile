@@ -109,7 +109,7 @@ $(OUTBIN): .go/$(OUTBIN).stamp
 	        ARCH=$(ARCH)                                        \
 	        OS=$(OS)                                            \
 	        VERSION=$(VERSION)                                  \
-	        ./build/build.sh                                    \
+	        ./hack/hack.sh                                    \
 	    "
 	@if ! cmp -s .go/$(OUTBIN) $(OUTBIN); then \
 	    mv .go/$(OUTBIN) $(OUTBIN);            \
@@ -187,7 +187,7 @@ test: $(BUILD_DIRS)
 	        ARCH=$(ARCH)                                        \
 	        OS=$(OS)                                            \
 	        VERSION=$(VERSION)                                  \
-	        ./build/test.sh $(SRC_DIRS)                         \
+	        ./hack/test.sh $(SRC_DIRS)                         \
 	    "
 
 $(BUILD_DIRS):
