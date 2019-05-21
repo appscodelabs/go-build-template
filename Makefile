@@ -157,16 +157,6 @@ push: .push-$(DOTFILE_IMAGE) say_push_name
 say_push_name:
 	@echo "pushed: $(IMAGE):$(TAG)"
 
-manifest-list: push
-	platforms=$$(echo $(ALL_PLATFORMS) | sed 's/ /,/g');  \
-	manifest-tool                                         \
-	    --username=oauth2accesstoken                      \
-	    --password=$$(gcloud auth print-access-token)     \
-	    push from-args                                    \
-	    --platforms "$$platforms"                         \
-	    --template $(REGISTRY)/$(BIN):$(VERSION)__OS_ARCH \
-	    --target $(REGISTRY)/$(BIN):$(VERSION)
-
 version:
 	@echo $(VERSION)
 
