@@ -8,13 +8,13 @@ COMPRESS ?=no
 REGISTRY ?= tigerworks
 
 # This version-strategy uses git tags to set the version string
-git_branch          := $(shell git rev-parse --abbrev-ref HEAD)
-git_tag             := $(shell git describe --exact-match --abbrev=0 2>/dev/null || echo "")
-commit_hash         := $(shell git rev-parse --verify HEAD)
-commit_timestamp    := $(shell date --date="@$$(git show -s --format=%ct)" --utc +%FT%T)
+git_branch       := $(shell git rev-parse --abbrev-ref HEAD)
+git_tag          := $(shell git describe --exact-match --abbrev=0 2>/dev/null || echo "")
+commit_hash      := $(shell git rev-parse --verify HEAD)
+commit_timestamp := $(shell date --date="@$$(git show -s --format=%ct)" --utc +%FT%T)
 
-VERSION             := $(shell git describe --tags --always --dirty)
-version_strategy    := commit_hash
+VERSION          := $(shell git describe --tags --always --dirty)
+version_strategy := commit_hash
 ifdef git_tag
 	VERSION := $(git_tag)
 	version_strategy := tag
@@ -37,21 +37,21 @@ DOCKER_PLATFORMS := linux/amd64 linux/arm linux/arm64
 BIN_PLATFORMS    := $(DOCKER_PLATFORMS) windows/amd64 darwin/amd64
 
 # Used internally.  Users should pass GOOS and/or GOARCH.
-OS := $(if $(GOOS),$(GOOS),$(shell go env GOOS))
+OS   := $(if $(GOOS),$(GOOS),$(shell go env GOOS))
 ARCH := $(if $(GOARCH),$(GOARCH),$(shell go env GOARCH))
 
-PROD_BASEIMAGE ?= gcr.io/distroless/static
-DEBUG_BASEIMAGE ?= alpine:3.9
+PROD_BASEIMAGE   ?= gcr.io/distroless/static
+DEBUG_BASEIMAGE  ?= alpine:3.9
 
-IMAGE := $(REGISTRY)/$(BIN)
-TAG := $(VERSION)_$(OS)_$(ARCH)
-PROD_TAG := $(TAG)
-DEBUG_TAG := $(PROD_TAG)-dbg
-PROD_CANARY_TAG := canary_$(OS)_$(ARCH)
+IMAGE            := $(REGISTRY)/$(BIN)
+TAG              := $(VERSION)_$(OS)_$(ARCH)
+PROD_TAG         := $(TAG)
+DEBUG_TAG        := $(PROD_TAG)-dbg
+PROD_CANARY_TAG  := canary_$(OS)_$(ARCH)
 DEBUG_CANARY_TAG := $(PROD_CANARY_TAG)-dbg
 
-GO_VERSION  ?= 1.12.5
-BUILD_IMAGE ?= appscode/golang-dev:$(GO_VERSION)-alpine
+GO_VERSION       ?= 1.12.5
+BUILD_IMAGE      ?= appscode/golang-dev:$(GO_VERSION)-alpine
 
 OUTBIN = bin/$(OS)_$(ARCH)/$(BIN)
 ifeq ($(OS),windows)
@@ -59,9 +59,9 @@ ifeq ($(OS),windows)
 endif
 
 # Directories that we need created to build/test.
-BUILD_DIRS := bin/$(OS)_$(ARCH)     \
-              .go/bin/$(OS)_$(ARCH) \
-              .go/cache
+BUILD_DIRS  := bin/$(OS)_$(ARCH)     \
+               .go/bin/$(OS)_$(ARCH) \
+               .go/cache
 
 # If you want to build all binaries, see the 'all-build' rule.
 # If you want to build all containers, see the 'all-container' rule.
@@ -164,10 +164,10 @@ DOTFILE_IMAGE = $(subst /,_,$(IMAGE))-$(TAG)
 container: bin/.container-$(DOTFILE_IMAGE)-PROD bin/.container-$(DOTFILE_IMAGE)-DEBUG
 bin/.container-$(DOTFILE_IMAGE)-%: bin/$(OS)_$(ARCH)/$(BIN) Dockerfile.in
 	@echo "container: $(IMAGE):$($*_TAG)"
-	@sed                                 \
-	    -e 's|{ARG_BIN}|$(BIN)|g'        \
-	    -e 's|{ARG_ARCH}|$(ARCH)|g'      \
-	    -e 's|{ARG_OS}|$(OS)|g'          \
+	@sed                                    \
+	    -e 's|{ARG_BIN}|$(BIN)|g'           \
+	    -e 's|{ARG_ARCH}|$(ARCH)|g'         \
+	    -e 's|{ARG_OS}|$(OS)|g'             \
 	    -e 's|{ARG_FROM}|$($*_BASEIMAGE)|g' \
 	    Dockerfile.in > bin/.dockerfile-$*-$(OS)_$(ARCH)
 	@docker build -t $(IMAGE):$($*_TAG) -f bin/.dockerfile-$*-$(OS)_$(ARCH) .
@@ -218,12 +218,23 @@ test: $(BUILD_DIRS)
 $(BUILD_DIRS):
 	@mkdir -p $@
 
-.PHONY: clean
-clean:
-	rm -rf .go bin
+gen:
+	@true
 
-
-#################################################################
+fmt: $(BUILD_DIRS)
+	@docker run                                                 \
+	    -i                                                      \
+	    --rm                                                    \
+	    -u $$(id -u):$$(id -g)                                  \
+	    -v $$(pwd):/src                                         \
+	    -w /src                                                 \
+	    -v $$(pwd)/.go/bin/$(OS)_$(ARCH):/go/bin                \
+	    -v $$(pwd)/.go/bin/$(OS)_$(ARCH):/go/bin/$(OS)_$(ARCH)  \
+	    -v $$(pwd)/.go/cache:/.cache                            \
+	    --env HTTP_PROXY=$(HTTP_PROXY)                          \
+	    --env HTTPS_PROXY=$(HTTPS_PROXY)                        \
+	    $(BUILD_IMAGE)                                          \
+	    ./hack/fmt.sh $(SRC_DIRS)
 
 ADDTL_LINTERS  := goconst,gofmt,goimports,unparam
 
@@ -244,29 +255,8 @@ lint: $(BUILD_DIRS)
 	    $(BUILD_IMAGE)                                          \
 	    golangci-lint run --enable $(ADDTL_LINTERS)
 
-################################################################
-
-
 .PHONY: ci
 ci: lint test build #cover
-
-gen:
-	@true
-
-fmt: $(BUILD_DIRS)
-	@docker run                                                 \
-	    -i                                                      \
-	    --rm                                                    \
-	    -u $$(id -u):$$(id -g)                                  \
-	    -v $$(pwd):/src                                         \
-	    -w /src                                                 \
-	    -v $$(pwd)/.go/bin/$(OS)_$(ARCH):/go/bin                \
-	    -v $$(pwd)/.go/bin/$(OS)_$(ARCH):/go/bin/$(OS)_$(ARCH)  \
-	    -v $$(pwd)/.go/cache:/.cache                            \
-	    --env HTTP_PROXY=$(HTTP_PROXY)                          \
-	    --env HTTPS_PROXY=$(HTTPS_PROXY)                        \
-	    $(BUILD_IMAGE)                                          \
-	    ./hack/fmt.sh $(SRC_DIRS)
 
 .PHONY: dev
 dev: gen fmt push
@@ -294,3 +284,7 @@ release:
 		exit 1;                                                       \
 	fi
 	@$(MAKE) clean all-push --no-print-directory
+
+.PHONY: clean
+clean:
+	rm -rf .go bin
