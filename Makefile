@@ -28,7 +28,7 @@ ARCH := $(if $(GOARCH),$(GOARCH),$(shell go env GOARCH))
 BASEIMAGE ?= gcr.io/distroless/static
 
 IMAGE := $(REGISTRY)/$(BIN)
-TAG := $(VERSION)__$(OS)_$(ARCH)
+TAG := $(VERSION)_$(OS)_$(ARCH)
 
 BUILD_IMAGE ?= appscode/golang-dev:1.12.5-stretch
 
