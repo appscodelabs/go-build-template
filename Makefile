@@ -1,16 +1,4 @@
-# Copyright 2016 The Kubernetes Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+SHELL=/bin/bash -o pipefail
 
 # The binary to build (just the basename).
 BIN := myapp
@@ -41,7 +29,7 @@ BASEIMAGE ?= gcr.io/distroless/static
 IMAGE := $(REGISTRY)/$(BIN)
 TAG := $(VERSION)__$(OS)_$(ARCH)
 
-BUILD_IMAGE ?= golang:1.12-alpine
+BUILD_IMAGE ?= golang:1.12-stretch
 
 # If you want to build all binaries, see the 'all-build' rule.
 # If you want to build all containers, see the 'all-container' rule.
@@ -105,7 +93,7 @@ $(OUTBIN): .go/$(OUTBIN).stamp
 	    --env HTTP_PROXY=$(HTTP_PROXY)                          \
 	    --env HTTPS_PROXY=$(HTTPS_PROXY)                        \
 	    $(BUILD_IMAGE)                                          \
-	    /bin/sh -c "                                            \
+	    /bin/bash -c "                                            \
 	        ARCH=$(ARCH)                                        \
 	        OS=$(OS)                                            \
 	        VERSION=$(VERSION)                                  \
@@ -131,7 +119,7 @@ shell: $(BUILD_DIRS)
 	    --env HTTP_PROXY=$(HTTP_PROXY)                          \
 	    --env HTTPS_PROXY=$(HTTPS_PROXY)                        \
 	    $(BUILD_IMAGE)                                          \
-	    /bin/sh $(CMD)
+	    /bin/bash $(CMD)
 
 # Used to track state in hidden files.
 DOTFILE_IMAGE = $(subst /,_,$(IMAGE))-$(TAG)
@@ -173,7 +161,7 @@ test: $(BUILD_DIRS)
 	    --env HTTP_PROXY=$(HTTP_PROXY)                          \
 	    --env HTTPS_PROXY=$(HTTPS_PROXY)                        \
 	    $(BUILD_IMAGE)                                          \
-	    /bin/sh -c "                                            \
+	    /bin/bash -c "                                            \
 	        ARCH=$(ARCH)                                        \
 	        OS=$(OS)                                            \
 	        VERSION=$(VERSION)                                  \
@@ -187,8 +175,10 @@ clean:
 	rm -rf .go bin
 
 
+#################################################################
+
 LINTER_IMAGE   := golangci/golangci-lint:v1.16.0
-ADDTL_LINTERS  := goconst,gofmt,unparam
+ADDTL_LINTERS  := goconst,gofmt,goimports,unparam
 
 .PHONY: lint
 lint: $(BUILD_DIRS)
