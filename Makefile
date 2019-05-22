@@ -34,6 +34,16 @@ CANARY_TAG := canary_$(OS)_$(ARCH)
 
 BUILD_IMAGE ?= appscode/golang-dev:1.12.5-alpine
 
+OUTBIN = bin/$(OS)_$(ARCH)/$(BIN)
+ifeq ($(OS),windows)
+  OUTBIN = bin/$(OS)_$(ARCH)/$(BIN).exe
+endif
+
+# Directories that we need created to build/test.
+BUILD_DIRS := bin/$(OS)_$(ARCH)     \
+              .go/bin/$(OS)_$(ARCH) \
+              .go/cache
+
 # If you want to build all binaries, see the 'all-build' rule.
 # If you want to build all containers, see the 'all-container' rule.
 # If you want to build AND push all containers, see the 'all-push' rule.
@@ -66,17 +76,7 @@ all-container: $(addprefix container-, $(subst /,_, $(DOCKER_PLATFORMS)))
 
 all-push: $(addprefix push-, $(subst /,_, $(DOCKER_PLATFORMS)))
 
-OUTBIN = bin/$(OS)_$(ARCH)/$(BIN)
-ifeq ($(OS),windows)
-  OUTBIN = bin/$(OS)_$(ARCH)/$(BIN).exe
-endif
-
 build: $(OUTBIN)
-
-# Directories that we need created to build/test.
-BUILD_DIRS := bin/$(OS)_$(ARCH)     \
-              .go/bin/$(OS)_$(ARCH) \
-              .go/cache
 
 # The following structure defeats Go's (intentional) behavior to always touch
 # result files, even if they have not changed.  This will still run `go` but
