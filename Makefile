@@ -246,6 +246,9 @@ fmt: $(BUILD_DIRS)
 	    $(BUILD_IMAGE)                                          \
 	    ./hack/fmt.sh $(SRC_DIRS)
 
+.PHONY: dev
+dev: gen fmt push
+
 .PHONY: qa
 qa:
 	@if [ "$$APPSCODE_ENV" = "prod" ]; then                                              \
