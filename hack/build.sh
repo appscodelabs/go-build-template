@@ -20,7 +20,19 @@ export GOOS="${OS}"
 export GO111MODULE=on
 export GOFLAGS="-mod=vendor"
 
-go install                                                      \
-    -installsuffix "static"                                     \
-    -ldflags "-X $(go list -m)/pkg/version.VERSION=${VERSION}"  \
+go install                                                            \
+    -installsuffix "static"                                           \
+    -ldflags "                                                        \
+      -X main.Version=${VERSION}                        \
+      -X main.VersionStrategy=${version_strategy:-}     \
+      -X main.GitTag=${git_tag:-}                       \
+      -X main.GitBranch=${git_branch:-}                 \
+      -X main.CommitHash=${commit_hash:-}               \
+      -X main.CommitTimestamp=${commit_timestamp:-}     \
+      -X main.Os=${OS}                                  \
+      -X main.Arch=${ARCH}                              \
+      -X main.GoVersion=$(go version | cut -d " " -f 3) \
+      -X main.Compiler=$(go env CC)                     \
+      -X main.Platform=${OS}/${ARCH}                    \
+    "                                                                 \
     ./...

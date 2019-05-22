@@ -19,9 +19,13 @@ package main
 import (
 	"fmt"
 	"log"
+
+	v "github.com/appscode/go/version"
 )
 
 func main() {
-	fmt.Println()
 	log.Printf("hello, world!")
+	fmt.Println()
+
+	v.Version.Print()
 }

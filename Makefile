@@ -8,10 +8,24 @@ COMPRESS ?=no
 REGISTRY ?= tigerworks
 
 # This version-strategy uses git tags to set the version string
-VERSION := $(shell git describe --tags --always --dirty)
-#
-# This version-strategy uses a manual value to set the version string
-#VERSION := 1.2.3
+git_branch          := $(shell git rev-parse --abbrev-ref HEAD)
+git_tag             := $(shell git describe --exact-match --abbrev=0 2>/dev/null || echo "")
+commit_hash         := $(shell git rev-parse --verify HEAD)
+commit_timestamp    := $(shell date --date="@$$(git show -s --format=%ct)" --utc +%FT%T)
+
+VERSION             := $(shell git describe --tags --always --dirty)
+version_strategy    := commit_hash
+ifdef git_tag
+	VERSION := $(git_tag)
+	version_strategy := tag
+else
+	ifeq (,$(findstring $(git_branch),master HEAD))
+		ifneq (,$(patsubst release-%,,$(git_branch)))
+			VERSION := $(git_branch)
+			version_strategy := branch
+		endif
+	endif
+endif
 
 ###
 ### These variables should not need tweaking.
@@ -48,50 +62,6 @@ endif
 BUILD_DIRS := bin/$(OS)_$(ARCH)     \
               .go/bin/$(OS)_$(ARCH) \
               .go/cache
-
-# metadata
-commit_hash := $(shell git rev-parse --verify HEAD)
-git_branch := $(shell git rev-parse --abbrev-ref HEAD)
-git_tag := $(shell git describe --exact-match --abbrev=0 2>/dev/null || echo "")
-commit_timestamp := $(shell date --date="@$$(git show -s --format=%ct)" --utc +%FT%T)
-version_strategy := commit_hash
-version := $(shell git describe --tags --always --dirty)
-
-# compiler flags
-linker_opts := -X main.GitTag=$(git_tag)
-linker_opts += -X main.CommitHash=$(commit_hash)
-linker_opts += -X main.CommitTimestamp=$(commit_timestamp)
-linker_opts += -X main.VersionStrategy=$(version_strategy)
-linker_opts += -X main.Version=$(version)
-linker_opts += -X main.GitBranch=$(git_branch)
-linker_opts += -X main.Os=$(OS)
-linker_opts += -X main.Arch=$(ARCH)
-
-linker_opts += -X main.GoVersion=$(GO_VERSION)
-linker_opts += -X main.Compiler=$(shell go env CC)
-linker_opts += -X main.Platform=$(OS)/$(ARCH)
-
-ifdef git_tag
-	version := $(git_tag)
-	version_strategy := tag
-else
-	ifneq ($(git_branch),$(or master, HEAD))
-		ifneq (,$(patsubst release-%,,$(git_branch)))
-			version := $(git_branch)
-			version_strategy := branch
-		endif
-	endif
-endif
-
-# check if metadata is set correctly
-buildinfo:
-	@echo commit_hash=     $(commit_hash)
-	@echo commit_timestamp=$(commit_timestamp)
-	@echo git_branch=      $(git_branch)
-	@echo git_tag=         $(git_tag)
-	@echo version=         $(version)
-	@echo version_strategy=$(version_strategy)
-	@echo linker_opts=     "$(linker_opts)"
 
 # If you want to build all binaries, see the 'all-build' rule.
 # If you want to build all containers, see the 'all-container' rule.
@@ -154,6 +124,11 @@ $(OUTBIN): .go/$(OUTBIN).stamp
 	        ARCH=$(ARCH)                                        \
 	        OS=$(OS)                                            \
 	        VERSION=$(VERSION)                                  \
+	        version_strategy=$(version_strategy)                \
+	        git_branch=$(git_branch)                            \
+	        git_tag=$(git_tag)                                  \
+	        commit_hash=$(commit_hash)                          \
+	        commit_timestamp=$(commit_timestamp)                \
 	        ./hack/build.sh                                     \
 	    "
 	@if [ $(COMPRESS) = yes ] && [ $(OS) != windows ]; then \
@@ -213,7 +188,12 @@ bin/.push-$(DOTFILE_IMAGE)-%: bin/.container-$(DOTFILE_IMAGE)-%
 	@echo
 
 version:
-	@echo $(VERSION)
+	@echo version=$(VERSION)
+	@echo version_strategy=$(version_strategy)
+	@echo git_tag=$(git_tag)
+	@echo git_branch=$(git_branch)
+	@echo commit_hash=$(commit_hash)
+	@echo commit_timestamp=$(commit_timestamp)
 
 test: $(BUILD_DIRS)
 	@docker run                                                 \
