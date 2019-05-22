@@ -16,8 +16,12 @@ limitations under the License.
 
 package main
 
-import "log"
+import (
+	"fmt"
+	"log"
+)
 
 func main() {
+	fmt.Println()
 	log.Printf("hello, world!")
 }
