@@ -185,3 +185,24 @@ $(BUILD_DIRS):
 
 clean:
 	rm -rf .go bin
+
+
+LINTER_IMAGE   := golangci/golangci-lint:v1.16.0
+ADDTL_LINTERS  := goconst,gofmt,unparam
+
+.PHONY: lint
+lint: $(BUILD_DIRS)
+	@echo "running linter"
+	@docker run                                                 \
+	    -i                                                      \
+	    --rm                                                    \
+	    -u $$(id -u):$$(id -g)                                  \
+	    -v $$(pwd):/src                                         \
+	    -w /src                                                 \
+	    -v $$(pwd)/.go/bin/$(OS)_$(ARCH):/go/bin                \
+	    -v $$(pwd)/.go/bin/$(OS)_$(ARCH):/go/bin/$(OS)_$(ARCH)  \
+	    -v $$(pwd)/.go/cache:/.cache                            \
+	    --env HTTP_PROXY=$(HTTP_PROXY)                          \
+	    --env HTTPS_PROXY=$(HTTPS_PROXY)                        \
+	    $(LINTER_IMAGE)                                         \
+	    golangci-lint run --enable $(ADDTL_LINTERS)
