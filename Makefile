@@ -30,6 +30,7 @@ BASEIMAGE ?= gcr.io/distroless/static
 
 IMAGE := $(REGISTRY)/$(BIN)
 TAG := $(VERSION)_$(OS)_$(ARCH)
+CANARY_TAG := canary_$(OS)_$(ARCH)
 
 BUILD_IMAGE ?= appscode/golang-dev:1.12.5-alpine
 
@@ -135,6 +136,9 @@ shell: $(BUILD_DIRS)
 # Used to track state in hidden files.
 DOTFILE_IMAGE = $(subst /,_,$(IMAGE))-$(TAG)
 
+version_strategy = commit_hash
+git_branch = master
+
 container: bin/.container-$(DOTFILE_IMAGE) say_container_name
 bin/.container-$(DOTFILE_IMAGE): bin/$(OS)_$(ARCH)/$(BIN) Dockerfile.in
 	@sed                                 \
@@ -145,6 +149,9 @@ bin/.container-$(DOTFILE_IMAGE): bin/$(OS)_$(ARCH)/$(BIN) Dockerfile.in
 	    Dockerfile.in > bin/.dockerfile-$(OS)_$(ARCH)
 	@docker build -t $(IMAGE):$(TAG) -f bin/.dockerfile-$(OS)_$(ARCH) .
 	@docker images -q $(IMAGE):$(TAG) > $@
+	@if [ $(version_strategy) = commit_hash ] && [ $(git_branch) = master ]; then \
+		docker tag $(IMAGE):$(TAG) $(IMAGE):$(CANARY_TAG);                        \
+	fi
 
 say_container_name:
 	@echo "container: $(IMAGE):$(TAG)"
@@ -152,6 +159,9 @@ say_container_name:
 push: bin/.push-$(DOTFILE_IMAGE) say_push_name
 bin/.push-$(DOTFILE_IMAGE): bin/.container-$(DOTFILE_IMAGE)
 	@docker push $(IMAGE):$(TAG)
+	@if [ $(version_strategy) = commit_hash ] && [ $(git_branch) = master ]; then \
+		docker push $(IMAGE):$(CANARY_TAG);                                       \
+	fi
 
 say_push_name:
 	@echo "pushed: $(IMAGE):$(TAG)"
