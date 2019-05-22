@@ -30,7 +30,7 @@ VERSION := $(shell git describe --tags --always --dirty)
 
 SRC_DIRS := cmd pkg # directories which hold app source (not vendored)
 
-ALL_PLATFORMS := linux/amd64 linux/arm linux/arm64 linux/ppc64le linux/s390x
+DOCKER_PLATFORMS := linux/amd64 linux/arm linux/arm64
 
 # Used internally.  Users should pass GOOS and/or GOARCH.
 OS := $(if $(GOOS),$(GOOS),$(shell go env GOOS))
@@ -69,11 +69,11 @@ push-%:
 	    GOOS=$(firstword $(subst _, ,$*)) \
 	    GOARCH=$(lastword $(subst _, ,$*))
 
-all-build: $(addprefix build-, $(subst /,_, $(ALL_PLATFORMS)))
+all-build: $(addprefix build-, $(subst /,_, $(DOCKER_PLATFORMS)))
 
-all-container: $(addprefix container-, $(subst /,_, $(ALL_PLATFORMS)))
+all-container: $(addprefix container-, $(subst /,_, $(DOCKER_PLATFORMS)))
 
-all-push: $(addprefix push-, $(subst /,_, $(ALL_PLATFORMS)))
+all-push: $(addprefix push-, $(subst /,_, $(DOCKER_PLATFORMS)))
 
 build: bin/$(OS)_$(ARCH)/$(BIN)
 
@@ -109,7 +109,7 @@ $(OUTBIN): .go/$(OUTBIN).stamp
 	        ARCH=$(ARCH)                                        \
 	        OS=$(OS)                                            \
 	        VERSION=$(VERSION)                                  \
-	        ./hack/hack.sh                                    \
+	        ./hack/build.sh                                     \
 	    "
 	@if ! cmp -s .go/$(OUTBIN) $(OUTBIN); then \
 	    mv .go/$(OUTBIN) $(OUTBIN);            \
@@ -136,22 +136,22 @@ shell: $(BUILD_DIRS)
 # Used to track state in hidden files.
 DOTFILE_IMAGE = $(subst /,_,$(IMAGE))-$(TAG)
 
-container: .container-$(DOTFILE_IMAGE) say_container_name
-.container-$(DOTFILE_IMAGE): bin/$(OS)_$(ARCH)/$(BIN) Dockerfile.in
+container: bin/.container-$(DOTFILE_IMAGE) say_container_name
+bin/.container-$(DOTFILE_IMAGE): bin/$(OS)_$(ARCH)/$(BIN) Dockerfile.in
 	@sed                                 \
 	    -e 's|{ARG_BIN}|$(BIN)|g'        \
 	    -e 's|{ARG_ARCH}|$(ARCH)|g'      \
 	    -e 's|{ARG_OS}|$(OS)|g'          \
 	    -e 's|{ARG_FROM}|$(BASEIMAGE)|g' \
-	    Dockerfile.in > .dockerfile-$(OS)_$(ARCH)
-	@docker build -t $(IMAGE):$(TAG) -f .dockerfile-$(OS)_$(ARCH) .
+	    Dockerfile.in > bin/.dockerfile-$(OS)_$(ARCH)
+	@docker build -t $(IMAGE):$(TAG) -f bin/.dockerfile-$(OS)_$(ARCH) .
 	@docker images -q $(IMAGE):$(TAG) > $@
 
 say_container_name:
 	@echo "container: $(IMAGE):$(TAG)"
 
-push: .push-$(DOTFILE_IMAGE) say_push_name
-.push-$(DOTFILE_IMAGE): .container-$(DOTFILE_IMAGE)
+push: bin/.push-$(DOTFILE_IMAGE) say_push_name
+bin/.push-$(DOTFILE_IMAGE): bin/.container-$(DOTFILE_IMAGE)
 	@docker push $(IMAGE):$(TAG)
 
 say_push_name:
@@ -177,16 +177,11 @@ test: $(BUILD_DIRS)
 	        ARCH=$(ARCH)                                        \
 	        OS=$(OS)                                            \
 	        VERSION=$(VERSION)                                  \
-	        ./hack/test.sh $(SRC_DIRS)                         \
+	        ./hack/test.sh $(SRC_DIRS)                          \
 	    "
 
 $(BUILD_DIRS):
 	@mkdir -p $@
 
-clean: container-clean bin-clean
-
-container-clean:
-	rm -rf .container-* .dockerfile-* .push-*
-
-bin-clean:
+clean:
 	rm -rf .go bin
