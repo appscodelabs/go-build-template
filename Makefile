@@ -206,3 +206,9 @@ lint: $(BUILD_DIRS)
 	    --env HTTPS_PROXY=$(HTTPS_PROXY)                        \
 	    $(LINTER_IMAGE)                                         \
 	    golangci-lint run --enable $(ADDTL_LINTERS)
+
+################################################################
+
+
+.PHONY: ci
+ci: lint test build #cover
