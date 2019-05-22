@@ -26,11 +26,15 @@ BIN_PLATFORMS    := $(DOCKER_PLATFORMS) windows/amd64 darwin/amd64
 OS := $(if $(GOOS),$(GOOS),$(shell go env GOOS))
 ARCH := $(if $(GOARCH),$(GOARCH),$(shell go env GOARCH))
 
-BASEIMAGE ?= gcr.io/distroless/static
+PROD_BASEIMAGE ?= gcr.io/distroless/static
+DEBUG_BASEIMAGE ?= alpine:3.9
 
 IMAGE := $(REGISTRY)/$(BIN)
 TAG := $(VERSION)_$(OS)_$(ARCH)
-CANARY_TAG := canary_$(OS)_$(ARCH)
+PROD_TAG := $(TAG)
+DEBUG_TAG := $(PROD_TAG)-debug
+PROD_CANARY_TAG := canary_$(OS)_$(ARCH)
+DEBUG_CANARY_TAG := $(PROD_CANARY_TAG)-debug
 
 BUILD_IMAGE ?= appscode/golang-dev:1.12.5-alpine
 
@@ -115,6 +119,7 @@ $(OUTBIN): .go/$(OUTBIN).stamp
 	    mv .go/$(OUTBIN) $(OUTBIN);            \
 	    date >$@;                              \
 	fi
+	@echo
 
 # Example: make shell CMD="-c 'date > datefile'"
 shell: $(BUILD_DIRS)
@@ -139,32 +144,31 @@ DOTFILE_IMAGE = $(subst /,_,$(IMAGE))-$(TAG)
 version_strategy = commit_hash
 git_branch = master
 
-container: bin/.container-$(DOTFILE_IMAGE) say_container_name
-bin/.container-$(DOTFILE_IMAGE): bin/$(OS)_$(ARCH)/$(BIN) Dockerfile.in
+container: bin/.container-$(DOTFILE_IMAGE)-PROD bin/.container-$(DOTFILE_IMAGE)-DEBUG
+bin/.container-$(DOTFILE_IMAGE)-%: bin/$(OS)_$(ARCH)/$(BIN) Dockerfile.in
+	@echo "container: $(IMAGE):$($*_TAG)"
 	@sed                                 \
 	    -e 's|{ARG_BIN}|$(BIN)|g'        \
 	    -e 's|{ARG_ARCH}|$(ARCH)|g'      \
 	    -e 's|{ARG_OS}|$(OS)|g'          \
-	    -e 's|{ARG_FROM}|$(BASEIMAGE)|g' \
-	    Dockerfile.in > bin/.dockerfile-$(OS)_$(ARCH)
-	@docker build -t $(IMAGE):$(TAG) -f bin/.dockerfile-$(OS)_$(ARCH) .
-	@docker images -q $(IMAGE):$(TAG) > $@
+	    -e 's|{ARG_FROM}|$($*_BASEIMAGE)|g' \
+	    Dockerfile.in > bin/.dockerfile-$*-$(OS)_$(ARCH)
+	@docker build -t $(IMAGE):$($*_TAG) -f bin/.dockerfile-$*-$(OS)_$(ARCH) .
+	@docker images -q $(IMAGE):$($*_TAG) > $@
 	@if [ $(version_strategy) = commit_hash ] && [ $(git_branch) = master ]; then \
-		docker tag $(IMAGE):$(TAG) $(IMAGE):$(CANARY_TAG);                        \
+		docker tag $(IMAGE):$($*_TAG) $(IMAGE):$($*_CANARY_TAG);                  \
 	fi
+	@echo
 
-say_container_name:
-	@echo "container: $(IMAGE):$(TAG)"
-
-push: bin/.push-$(DOTFILE_IMAGE) say_push_name
-bin/.push-$(DOTFILE_IMAGE): bin/.container-$(DOTFILE_IMAGE)
-	@docker push $(IMAGE):$(TAG)
+push: bin/.push-$(DOTFILE_IMAGE)-PROD bin/.push-$(DOTFILE_IMAGE)-DEBUG
+bin/.push-$(DOTFILE_IMAGE)-%: bin/.container-$(DOTFILE_IMAGE)-%
+	@docker push $(IMAGE):$($*_TAG)
+	@echo "pushed: $(IMAGE):$($*_TAG)"
 	@if [ $(version_strategy) = commit_hash ] && [ $(git_branch) = master ]; then \
-		docker push $(IMAGE):$(CANARY_TAG);                                       \
+		docker push $(IMAGE):$($*_CANARY_TAG);                                    \
+		echo "pushed: $(IMAGE):$($*_TAG)";                                        \
 	fi
-
-say_push_name:
-	@echo "pushed: $(IMAGE):$(TAG)"
+	@echo
 
 version:
 	@echo $(VERSION)
