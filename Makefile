@@ -20,6 +20,7 @@ VERSION := $(shell git describe --tags --always --dirty)
 SRC_DIRS := cmd pkg # directories which hold app source (not vendored)
 
 DOCKER_PLATFORMS := linux/amd64 linux/arm linux/arm64
+BIN_PLATFORMS    := $(DOCKER_PLATFORMS) windows/amd64 darwin/amd64
 
 # Used internally.  Users should pass GOOS and/or GOARCH.
 OS := $(if $(GOOS),$(GOOS),$(shell go env GOOS))
@@ -30,7 +31,7 @@ BASEIMAGE ?= gcr.io/distroless/static
 IMAGE := $(REGISTRY)/$(BIN)
 TAG := $(VERSION)_$(OS)_$(ARCH)
 
-BUILD_IMAGE ?= appscode/golang-dev:1.12.5-stretch
+BUILD_IMAGE ?= appscode/golang-dev:1.12.5-alpine
 
 # If you want to build all binaries, see the 'all-build' rule.
 # If you want to build all containers, see the 'all-container' rule.
@@ -58,13 +59,18 @@ push-%:
 	    GOOS=$(firstword $(subst _, ,$*)) \
 	    GOARCH=$(lastword $(subst _, ,$*))
 
-all-build: $(addprefix build-, $(subst /,_, $(DOCKER_PLATFORMS)))
+all-build: $(addprefix build-, $(subst /,_, $(BIN_PLATFORMS)))
 
 all-container: $(addprefix container-, $(subst /,_, $(DOCKER_PLATFORMS)))
 
 all-push: $(addprefix push-, $(subst /,_, $(DOCKER_PLATFORMS)))
 
-build: bin/$(OS)_$(ARCH)/$(BIN)
+OUTBIN = bin/$(OS)_$(ARCH)/$(BIN)
+ifeq ($(OS),windows)
+  OUTBIN = bin/$(OS)_$(ARCH)/$(BIN).exe
+endif
+
+build: $(OUTBIN)
 
 # Directories that we need created to build/test.
 BUILD_DIRS := bin/$(OS)_$(ARCH)     \
@@ -74,7 +80,7 @@ BUILD_DIRS := bin/$(OS)_$(ARCH)     \
 # The following structure defeats Go's (intentional) behavior to always touch
 # result files, even if they have not changed.  This will still run `go` but
 # will not trigger further work if nothing has actually changed.
-OUTBIN = bin/$(OS)_$(ARCH)/$(BIN)
+
 $(OUTBIN): .go/$(OUTBIN).stamp
 	@true
 
@@ -100,7 +106,6 @@ $(OUTBIN): .go/$(OUTBIN).stamp
 	        VERSION=$(VERSION)                                  \
 	        ./hack/build.sh                                     \
 	    "
-	# ref: https://stackoverflow.com/a/47576482/244009
 	@if [ $(COMPRESS) = yes ] && [ $(OS) != windows ]; then \
 		echo "compressing $(OUTBIN)";                       \
 		upx --brute .go/$(OUTBIN);                          \
