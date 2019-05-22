@@ -32,9 +32,9 @@ DEBUG_BASEIMAGE ?= alpine:3.9
 IMAGE := $(REGISTRY)/$(BIN)
 TAG := $(VERSION)_$(OS)_$(ARCH)
 PROD_TAG := $(TAG)
-DEBUG_TAG := $(PROD_TAG)-debug
+DEBUG_TAG := $(PROD_TAG)-dbg
 PROD_CANARY_TAG := canary_$(OS)_$(ARCH)
-DEBUG_CANARY_TAG := $(PROD_CANARY_TAG)-debug
+DEBUG_CANARY_TAG := $(PROD_CANARY_TAG)-dbg
 
 BUILD_IMAGE ?= appscode/golang-dev:1.12.5-alpine
 
@@ -186,7 +186,7 @@ test: $(BUILD_DIRS)
 	    --env HTTP_PROXY=$(HTTP_PROXY)                          \
 	    --env HTTPS_PROXY=$(HTTPS_PROXY)                        \
 	    $(BUILD_IMAGE)                                          \
-	    /bin/bash -c "                                            \
+	    /bin/bash -c "                                          \
 	        ARCH=$(ARCH)                                        \
 	        OS=$(OS)                                            \
 	        VERSION=$(VERSION)                                  \
@@ -219,7 +219,7 @@ lint: $(BUILD_DIRS)
 	    -v $$(pwd)/.go/cache:/.cache                            \
 	    --env HTTP_PROXY=$(HTTP_PROXY)                          \
 	    --env HTTPS_PROXY=$(HTTPS_PROXY)                        \
-	    $(BUILD_IMAGE)                                         \
+	    $(BUILD_IMAGE)                                          \
 	    golangci-lint run --enable $(ADDTL_LINTERS)
 
 ################################################################
@@ -245,3 +245,27 @@ fmt: $(BUILD_DIRS)
 	    --env HTTPS_PROXY=$(HTTPS_PROXY)                        \
 	    $(BUILD_IMAGE)                                          \
 	    ./hack/fmt.sh $(SRC_DIRS)
+
+.PHONY: qa
+qa:
+	@if [ "$$APPSCODE_ENV" = "prod" ]; then                                              \
+		echo "Nothing to do in prod env. Are you trying to 'release' binaries to prod?"; \
+		exit 1;                                                                          \
+	fi
+	@if [ "$(version_strategy)" = "git_tag" ]; then           \
+		echo "Are you trying to 'release' binaries to prod?"; \
+		exit 1;                                               \
+	fi
+	@$(MAKE) clean all-push --no-print-directory
+
+.PHONY: release
+release:
+	@if [ "$$APPSCODE_ENV" != "prod" ]; then      \
+		echo "'release' only works in PROD env."; \
+		exit 1;                                   \
+	fi
+	@if [ "$(version_strategy)" != "git_tag" ]; then                  \
+		echo "'apply_tag' to release binaries and/or docker images."; \
+		exit 1;                                                       \
+	fi
+	@$(MAKE) clean all-push --no-print-directory
