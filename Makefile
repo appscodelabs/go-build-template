@@ -2,6 +2,7 @@ SHELL=/bin/bash -o pipefail
 
 # The binary to build (just the basename).
 BIN := myapp
+COMPRESS ?=no
 
 # Where to push the docker image.
 REGISTRY ?= tigerworks
@@ -93,12 +94,17 @@ $(OUTBIN): .go/$(OUTBIN).stamp
 	    --env HTTP_PROXY=$(HTTP_PROXY)                          \
 	    --env HTTPS_PROXY=$(HTTPS_PROXY)                        \
 	    $(BUILD_IMAGE)                                          \
-	    /bin/bash -c "                                            \
+	    /bin/bash -c "                                          \
 	        ARCH=$(ARCH)                                        \
 	        OS=$(OS)                                            \
 	        VERSION=$(VERSION)                                  \
 	        ./hack/build.sh                                     \
 	    "
+	# ref: https://stackoverflow.com/a/47576482/244009
+	@if [ $(COMPRESS) = yes ] && [ $(OS) != windows ]; then \
+		echo "compressing $(OUTBIN)";                       \
+		upx --brute .go/$(OUTBIN);                          \
+	fi
 	@if ! cmp -s .go/$(OUTBIN) $(OUTBIN); then \
 	    mv .go/$(OUTBIN) $(OUTBIN);            \
 	    date >$@;                              \
@@ -178,7 +184,6 @@ clean:
 
 #################################################################
 
-LINTER_IMAGE   := golangci/golangci-lint:v1.16.0
 ADDTL_LINTERS  := goconst,gofmt,goimports,unparam
 
 .PHONY: lint
@@ -195,7 +200,7 @@ lint: $(BUILD_DIRS)
 	    -v $$(pwd)/.go/cache:/.cache                            \
 	    --env HTTP_PROXY=$(HTTP_PROXY)                          \
 	    --env HTTPS_PROXY=$(HTTPS_PROXY)                        \
-	    $(LINTER_IMAGE)                                         \
+	    $(BUILD_IMAGE)                                         \
 	    golangci-lint run --enable $(ADDTL_LINTERS)
 
 ################################################################
