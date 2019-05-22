@@ -36,7 +36,8 @@ DEBUG_TAG := $(PROD_TAG)-dbg
 PROD_CANARY_TAG := canary_$(OS)_$(ARCH)
 DEBUG_CANARY_TAG := $(PROD_CANARY_TAG)-dbg
 
-BUILD_IMAGE ?= appscode/golang-dev:1.12.5-alpine
+GO_VERSION  ?= 1.12.5
+BUILD_IMAGE ?= appscode/golang-dev:$(GO_VERSION)-alpine
 
 OUTBIN = bin/$(OS)_$(ARCH)/$(BIN)
 ifeq ($(OS),windows)
@@ -47,6 +48,50 @@ endif
 BUILD_DIRS := bin/$(OS)_$(ARCH)     \
               .go/bin/$(OS)_$(ARCH) \
               .go/cache
+
+# metadata
+commit_hash := $(shell git rev-parse --verify HEAD)
+git_branch := $(shell git rev-parse --abbrev-ref HEAD)
+git_tag := $(shell git describe --exact-match --abbrev=0 2>/dev/null || echo "")
+commit_timestamp := $(shell date --date="@$$(git show -s --format=%ct)" --utc +%FT%T)
+version_strategy := commit_hash
+version := $(shell git describe --tags --always --dirty)
+
+# compiler flags
+linker_opts := -X main.GitTag=$(git_tag)
+linker_opts += -X main.CommitHash=$(commit_hash)
+linker_opts += -X main.CommitTimestamp=$(commit_timestamp)
+linker_opts += -X main.VersionStrategy=$(version_strategy)
+linker_opts += -X main.Version=$(version)
+linker_opts += -X main.GitBranch=$(git_branch)
+linker_opts += -X main.Os=$(OS)
+linker_opts += -X main.Arch=$(ARCH)
+
+linker_opts += -X main.GoVersion=$(GO_VERSION)
+linker_opts += -X main.Compiler=$(shell go env CC)
+linker_opts += -X main.Platform=$(OS)/$(ARCH)
+
+ifdef git_tag
+	version := $(git_tag)
+	version_strategy := tag
+else
+	ifneq ($(git_branch),$(or master, HEAD))
+		ifneq (,$(patsubst release-%,,$(git_branch)))
+			version := $(git_branch)
+			version_strategy := branch
+		endif
+	endif
+endif
+
+# check if metadata is set correctly
+buildinfo:
+	@echo commit_hash=     $(commit_hash)
+	@echo commit_timestamp=$(commit_timestamp)
+	@echo git_branch=      $(git_branch)
+	@echo git_tag=         $(git_tag)
+	@echo version=         $(version)
+	@echo version_strategy=$(version_strategy)
+	@echo linker_opts=     "$(linker_opts)"
 
 # If you want to build all binaries, see the 'all-build' rule.
 # If you want to build all containers, see the 'all-container' rule.
@@ -140,9 +185,6 @@ shell: $(BUILD_DIRS)
 
 # Used to track state in hidden files.
 DOTFILE_IMAGE = $(subst /,_,$(IMAGE))-$(TAG)
-
-version_strategy = commit_hash
-git_branch = master
 
 container: bin/.container-$(DOTFILE_IMAGE)-PROD bin/.container-$(DOTFILE_IMAGE)-DEBUG
 bin/.container-$(DOTFILE_IMAGE)-%: bin/$(OS)_$(ARCH)/$(BIN) Dockerfile.in
