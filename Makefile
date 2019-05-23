@@ -41,7 +41,7 @@ OS   := $(if $(GOOS),$(GOOS),$(shell go env GOOS))
 ARCH := $(if $(GOARCH),$(GOARCH),$(shell go env GOARCH))
 
 BASEIMAGE_PROD   ?= gcr.io/distroless/static
-BASEIMAGE_DBG    ?= alpine:3.9
+BASEIMAGE_DBG    ?= debian:stretch
 
 IMAGE            := $(REGISTRY)/$(BIN)
 TAG              := $(VERSION)_$(OS)_$(ARCH)
@@ -51,7 +51,7 @@ CANARY_TAG_PROD  := canary_$(OS)_$(ARCH)
 CANARY_TAG_DBG   := $(CANARY_TAG_PROD)-dbg
 
 GO_VERSION       ?= 1.12.5
-BUILD_IMAGE      ?= appscode/golang-dev:$(GO_VERSION)-alpine
+BUILD_IMAGE      ?= appscode/golang-dev:$(GO_VERSION)-stretch
 
 OUTBIN = bin/$(OS)_$(ARCH)/$(BIN)
 ifeq ($(OS),windows)
