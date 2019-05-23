@@ -40,15 +40,15 @@ BIN_PLATFORMS    := $(DOCKER_PLATFORMS) windows/amd64 darwin/amd64
 OS   := $(if $(GOOS),$(GOOS),$(shell go env GOOS))
 ARCH := $(if $(GOARCH),$(GOARCH),$(shell go env GOARCH))
 
-PROD_BASEIMAGE   ?= gcr.io/distroless/static
-DEBUG_BASEIMAGE  ?= alpine:3.9
+BASEIMAGE_PROD   ?= gcr.io/distroless/static
+BASEIMAGE_DBG    ?= alpine:3.9
 
 IMAGE            := $(REGISTRY)/$(BIN)
 TAG              := $(VERSION)_$(OS)_$(ARCH)
-PROD_TAG         := $(TAG)
-DEBUG_TAG        := $(PROD_TAG)-dbg
-PROD_CANARY_TAG  := canary_$(OS)_$(ARCH)
-DEBUG_CANARY_TAG := $(PROD_CANARY_TAG)-dbg
+TAG_PROD         := $(TAG)
+TAG_DBG          := $(TAG_PROD)-dbg
+CANARY_TAG_PROD  := canary_$(OS)_$(ARCH)
+CANARY_TAG_DBG   := $(CANARY_TAG_PROD)-dbg
 
 GO_VERSION       ?= 1.12.5
 BUILD_IMAGE      ?= appscode/golang-dev:$(GO_VERSION)-alpine
@@ -62,6 +62,9 @@ endif
 BUILD_DIRS  := bin/$(OS)_$(ARCH)     \
                .go/bin/$(OS)_$(ARCH) \
                .go/cache
+
+DOCKERFILE_PROD  = Dockerfile.in
+DOCKERFILE_DBG   = Dockerfile.dbg
 
 # If you want to build all binaries, see the 'all-build' rule.
 # If you want to build all containers, see the 'all-container' rule.
@@ -168,31 +171,31 @@ $(OUTBIN): .go/$(OUTBIN).stamp
 	@echo
 
 # Used to track state in hidden files.
-DOTFILE_IMAGE = $(subst /,_,$(IMAGE))-$(TAG)
+DOTFILE_IMAGE    = $(subst /,_,$(IMAGE))-$(TAG)
 
-container: bin/.container-$(DOTFILE_IMAGE)-PROD bin/.container-$(DOTFILE_IMAGE)-DEBUG
-bin/.container-$(DOTFILE_IMAGE)-%: bin/$(OS)_$(ARCH)/$(BIN) Dockerfile.in
-	@echo "container: $(IMAGE):$($*_TAG)"
+container: bin/.container-$(DOTFILE_IMAGE)-PROD bin/.container-$(DOTFILE_IMAGE)-DBG
+bin/.container-$(DOTFILE_IMAGE)-%: bin/$(OS)_$(ARCH)/$(BIN) $(DOCKERFILE_%)
+	@echo "container: $(IMAGE):$(TAG_$*)"
 	@sed                                    \
 	    -e 's|{ARG_BIN}|$(BIN)|g'           \
 	    -e 's|{ARG_ARCH}|$(ARCH)|g'         \
 	    -e 's|{ARG_OS}|$(OS)|g'             \
-	    -e 's|{ARG_FROM}|$($*_BASEIMAGE)|g' \
-	    Dockerfile.in > bin/.dockerfile-$*-$(OS)_$(ARCH)
-	@docker build -t $(IMAGE):$($*_TAG) -f bin/.dockerfile-$*-$(OS)_$(ARCH) .
-	@docker images -q $(IMAGE):$($*_TAG) > $@
+	    -e 's|{ARG_FROM}|$(BASEIMAGE_$*)|g' \
+	    $(DOCKERFILE_$*) > bin/.dockerfile-$*-$(OS)_$(ARCH)
+	@docker build -t $(IMAGE):$(TAG_$*) -f bin/.dockerfile-$*-$(OS)_$(ARCH) .
+	@docker images -q $(IMAGE):$(TAG_$*) > $@
 	@if [ $(version_strategy) = commit_hash ] && [ $(git_branch) = master ]; then \
-		docker tag $(IMAGE):$($*_TAG) $(IMAGE):$($*_CANARY_TAG);                  \
+		docker tag $(IMAGE):$(TAG_$*) $(IMAGE):$(CANARY_TAG_$*);                  \
 	fi
 	@echo
 
-push: bin/.push-$(DOTFILE_IMAGE)-PROD bin/.push-$(DOTFILE_IMAGE)-DEBUG
+push: bin/.push-$(DOTFILE_IMAGE)-PROD bin/.push-$(DOTFILE_IMAGE)-DBG
 bin/.push-$(DOTFILE_IMAGE)-%: bin/.container-$(DOTFILE_IMAGE)-%
-	@docker push $(IMAGE):$($*_TAG)
-	@echo "pushed: $(IMAGE):$($*_TAG)"
+	@docker push $(IMAGE):$(TAG_$*)
+	@echo "pushed: $(IMAGE):$(TAG_$*)"
 	@if [ $(version_strategy) = commit_hash ] && [ $(git_branch) = master ]; then \
-		docker push $(IMAGE):$($*_CANARY_TAG);                                    \
-		echo "pushed: $(IMAGE):$($*_TAG)";                                        \
+		docker push $(IMAGE):$(CANARY_TAG_$*);                                    \
+		echo "pushed: $(IMAGE):$(TAG_$*)";                                        \
 	fi
 	@echo
 
@@ -216,7 +219,7 @@ test: $(BUILD_DIRS)
 	        ./hack/test.sh $(SRC_DIRS)                          \
 	    "
 
-ADDTL_LINTERS  := goconst,gofmt,goimports,unparam
+ADDTL_LINTERS   := goconst,gofmt,goimports,unparam
 
 .PHONY: lint
 lint: $(BUILD_DIRS)
