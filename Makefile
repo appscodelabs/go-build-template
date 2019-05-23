@@ -1,7 +1,7 @@
 SHELL=/bin/bash -o pipefail
 
 # The binary to build (just the basename).
-BIN := myapp
+BIN      := myapp
 COMPRESS ?=no
 
 # Where to push the docker image.
