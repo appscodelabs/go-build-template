@@ -20,3 +20,4 @@ echo
 echo "Running gofmt:"
 cmd="gofmt -s -w ${TARGETS}"
 echo $cmd; $cmd
+echo
