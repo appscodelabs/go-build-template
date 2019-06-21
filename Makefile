@@ -50,7 +50,7 @@ TAG              := $(VERSION)_$(OS)_$(ARCH)
 TAG_PROD         := $(TAG)
 TAG_DBG          := $(VERSION)-dbg_$(OS)_$(ARCH)
 
-GO_VERSION       ?= 1.12.5
+GO_VERSION       ?= 1.12.6
 BUILD_IMAGE      ?= appscode/golang-dev:$(GO_VERSION)-stretch
 
 OUTBIN = bin/$(OS)_$(ARCH)/$(BIN)
@@ -160,9 +160,21 @@ $(OUTBIN): .go/$(OUTBIN).stamp
 	        commit_timestamp=$(commit_timestamp)                \
 	        ./hack/build.sh                                     \
 	    "
-	@if [ $(COMPRESS) = yes ] && [ $(OS) != windows ]; then \
-		echo "compressing $(OUTBIN)";                       \
-		upx --brute .go/$(OUTBIN);                          \
+	@if [ $(COMPRESS) = yes ] && [ $(OS) != windows ]; then         \
+		echo "compressing $(OUTBIN)";                               \
+		docker run                                                  \
+		    -i                                                      \
+		    --rm                                                    \
+		    -u $$(id -u):$$(id -g)                                  \
+		    -v $$(pwd):/src                                         \
+		    -w /src                                                 \
+		    -v $$(pwd)/.go/bin/$(OS)_$(ARCH):/go/bin                \
+		    -v $$(pwd)/.go/bin/$(OS)_$(ARCH):/go/bin/$(OS)_$(ARCH)  \
+		    -v $$(pwd)/.go/cache:/.cache                            \
+		    --env HTTP_PROXY=$(HTTP_PROXY)                          \
+		    --env HTTPS_PROXY=$(HTTPS_PROXY)                        \
+		    $(BUILD_IMAGE)                                          \
+		    upx --brute /go/$(OUTBIN);                              \
 	fi
 	@if ! cmp -s .go/$(OUTBIN) $(OUTBIN); then \
 	    mv .go/$(OUTBIN) $(OUTBIN);            \
@@ -249,28 +261,28 @@ dev: gen fmt push
 ci: lint test build #cover
 
 .PHONY: qa
-qa: docker-manifest
+qa:
 	@if [ "$$APPSCODE_ENV" = "prod" ]; then                                              \
 		echo "Nothing to do in prod env. Are you trying to 'release' binaries to prod?"; \
 		exit 1;                                                                          \
 	fi
-	@if [ "$(version_strategy)" = "git_tag" ]; then           \
+	@if [ "$(version_strategy)" = "tag" ]; then               \
 		echo "Are you trying to 'release' binaries to prod?"; \
 		exit 1;                                               \
 	fi
-	@$(MAKE) clean all-push --no-print-directory
+	@$(MAKE) clean all-push docker-manifest --no-print-directory
 
 .PHONY: release
-release: docker-manifest
+release:
 	@if [ "$$APPSCODE_ENV" != "prod" ]; then      \
 		echo "'release' only works in PROD env."; \
 		exit 1;                                   \
 	fi
-	@if [ "$(version_strategy)" != "git_tag" ]; then                  \
-		echo "'apply_tag' to release binaries and/or docker images."; \
-		exit 1;                                                       \
+	@if [ "$(version_strategy)" != "tag" ]; then                    \
+		echo "apply tag to release binaries and/or docker images."; \
+		exit 1;                                                     \
 	fi
-	@$(MAKE) clean all-push --no-print-directory
+	@$(MAKE) clean all-push docker-manifest --no-print-directory
 
 .PHONY: clean
 clean:
