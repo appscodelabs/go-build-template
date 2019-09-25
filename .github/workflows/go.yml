@@ -19,6 +19,14 @@ jobs:
     - name: Docker
       run: docker info; docker version
 
+    - name: Set up Docker Buildx
+      id: buildx
+      uses: crazy-max/ghaction-docker-buildx@master
+      with:
+        version: latest
+
+    - name: Available platforms
+      run: echo ${{ steps.buildx.outputs.platforms }}
+
     - name: Build
       run: make container
-
