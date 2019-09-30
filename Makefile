@@ -275,6 +275,7 @@ e2e-tests: $(BUILD_DIRS)
 	    -v $$(pwd)/.go/cache:/.cache                            \
 	    --env HTTP_PROXY=$(HTTP_PROXY)                          \
 	    --env HTTPS_PROXY=$(HTTPS_PROXY)                        \
+	    --env KUBECONFIG=$(KUBECONFIG)                          \
 	    --env-file=$$(pwd)/hack/config/.env                     \
 	    $(BUILD_IMAGE)                                          \
 	    /bin/bash -c "                                          \
@@ -288,6 +289,16 @@ e2e-tests: $(BUILD_DIRS)
 	        TEST_ARGS='$(TEST_ARGS)'                            \
 	        ./hack/e2e.sh                                       \
 	    "
+
+.PHONY: e2e-direct
+e2e-direct: $(BUILD_DIRS)
+	ARCH=$(ARCH)                                            \
+		OS=$(OS)                                            \
+		VERSION=$(VERSION)                                  \
+		DOCKER_REGISTRY=$(REGISTRY)                         \
+		GINKGO_ARGS='$(GINKGO_ARGS)'                        \
+		TEST_ARGS='$(TEST_ARGS)'                            \
+		./hack/e2e.sh                                       \
 
 .PHONY: e2e-parallel
 e2e-parallel:
