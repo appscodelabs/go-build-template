@@ -2,14 +2,14 @@ package version
 
 import (
 	"fmt"
+
 	"github.com/spf13/cobra"
+	semver "gomodules.xyz/version"
 )
 
 type version struct {
 	Version         string `json:"version,omitempty"`
 	VersionStrategy string `json:"versionStrategy,omitempty"`
-	Os              string `json:"os,omitempty"`
-	Arch            string `json:"arch,omitempty"`
 	CommitHash      string `json:"commitHash,omitempty"`
 	GitBranch       string `json:"gitBranch,omitempty"`
 	GitTag          string `json:"gitTag,omitempty"`
@@ -17,6 +17,10 @@ type version struct {
 	GoVersion       string `json:"goVersion,omitempty"`
 	Compiler        string `json:"compiler,omitempty"`
 	Platform        string `json:"platform,omitempty"`
+	// Deprecated
+	Os string `json:"os,omitempty"`
+	// Deprecated
+	Arch string `json:"arch,omitempty"`
 	// Deprecated
 	BuildTimestamp string `json:"buildTimestamp,omitempty"`
 	// Deprecated
@@ -30,12 +34,9 @@ type version struct {
 func (v *version) Print() {
 	fmt.Printf("Version = %v\n", v.Version)
 	fmt.Printf("VersionStrategy = %v\n", v.VersionStrategy)
-	fmt.Printf("Os = %v\n", v.Os)
-	fmt.Printf("Arch = %v\n", v.Arch)
-
-	fmt.Printf("CommitHash = %v\n", v.CommitHash)
-	fmt.Printf("GitBranch = %v\n", v.GitBranch)
 	fmt.Printf("GitTag = %v\n", v.GitTag)
+	fmt.Printf("GitBranch = %v\n", v.GitBranch)
+	fmt.Printf("CommitHash = %v\n", v.CommitHash)
 	fmt.Printf("CommitTimestamp = %v\n", v.CommitTimestamp)
 
 	if v.GoVersion != "" {
@@ -53,18 +54,34 @@ var Version version
 
 func NewCmdVersion() *cobra.Command {
 	var short bool
+	var check string
 	cmd := &cobra.Command{
 		Use:               "version",
 		Short:             "Prints binary version number.",
 		DisableAutoGenTag: true,
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if short {
 				fmt.Print(Version.Version)
 			} else {
 				Version.Print()
 			}
+			if check != "" {
+				c, err := semver.NewConstraint(check)
+				if err != nil {
+					return fmt.Errorf("failed to parse --check: %v", err)
+				}
+				v, err := semver.NewSemver(Version.Version)
+				if err != nil {
+					return fmt.Errorf("failed to parse version: %v", err)
+				}
+				if !c.Check(v) {
+					return fmt.Errorf("version %q fails to meet constraint %q", v.String(), c.String())
+				}
+			}
+			return nil
 		},
 	}
 	cmd.Flags().BoolVar(&short, "short", false, "Print just the version number.")
+	cmd.Flags().StringVar(&check, "check", "", "Check version constraint")
 	return cmd
 }
