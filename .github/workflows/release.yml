@@ -19,7 +19,6 @@ jobs:
       id: prepare
       run: |
         env | grep GITHUB
-        make version
         TAG=${GITHUB_REF#refs/tags/}
         MINOR=${TAG%.*}
         MAJOR=${MINOR%.*}
@@ -27,6 +26,11 @@ jobs:
         echo ::set-output name=minor_tag::${MINOR}
         echo ::set-output name=major_tag::${MAJOR}
         echo ::set-output name=major_exists::$(git show-ref origin/releases/${MAJOR})
+
+    - name: Print version info
+      id: git
+      run: |
+        make version
 
     - name: Set up Docker Buildx
       id: buildx
