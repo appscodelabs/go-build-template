@@ -19,6 +19,7 @@ jobs:
       id: prepare
       run: |
         env | grep GITHUB
+        make version
         TAG=${GITHUB_REF#refs/tags/}
         MINOR=${TAG%.*}
         MAJOR=${MINOR%.*}
@@ -44,4 +45,4 @@ jobs:
         APPSCODE_ENV: prod
       run: |
         docker login --username ${USERNAME} --password ${DOCKER_TOKEN}
-        make version release
+        make release
