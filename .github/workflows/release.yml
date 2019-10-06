@@ -31,7 +31,6 @@ jobs:
 
     - name: Build
       env:
-        REGISTRY: appscodeci
         DOCKER_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         USERNAME: 1gtm
         APPSCODE_ENV: prod
