@@ -16,6 +16,7 @@ jobs:
         name: Prepare
         id: prepare
         run: |
+          env | grep GITHUB
           TAG=${GITHUB_REF#refs/tags/}
           MINOR=${TAG%.*}
           MAJOR=${MINOR%.*}
