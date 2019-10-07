@@ -5,6 +5,7 @@ on:
     branches-ignore:
       - 'release-*'
     tags-ignore:
+      - '*.*'
       - '*.*.*'
 
 jobs:
