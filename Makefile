@@ -48,7 +48,7 @@ endif
 
 SRC_DIRS := cmd pkg # directories which hold app source (not vendored)
 
-DOCKER_PLATFORMS := linux/amd64 linux/arm linux/arm64
+DOCKER_PLATFORMS := linux/amd64 linux/arm64
 BIN_PLATFORMS    := $(DOCKER_PLATFORMS) windows/amd64 darwin/amd64
 
 # Used internally.  Users should pass GOOS and/or GOARCH.
