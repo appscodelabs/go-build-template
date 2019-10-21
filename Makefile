@@ -77,6 +77,7 @@ endif
 BUILD_DIRS  := bin/$(OS)_$(ARCH)     \
                .go/bin/$(OS)_$(ARCH) \
                .go/cache             \
+               hack/config           \
                $(HOME)/.credentials  \
                $(HOME)/.kube         \
                $(HOME)/.minikube
@@ -353,7 +354,7 @@ verify-gen: gen
 	fi
 
 .PHONY: ci
-ci: verify lint test build #cover
+ci: verify-gen lint build unit-tests #cover
 
 .PHONY: qa
 qa:
