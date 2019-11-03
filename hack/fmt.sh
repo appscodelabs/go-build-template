@@ -36,3 +36,7 @@ echo "Running gofmt:"
 cmd="gofmt -s -w ${TARGETS}"
 echo $cmd; $cmd
 echo
+
+echo "Running shfmt:"
+find . -path ./vendor -prune -o -name '*.sh' -exec shfmt -l -w -ci -i 4 {} \;
+echo
